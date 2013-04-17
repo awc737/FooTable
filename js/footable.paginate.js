@@ -17,48 +17,65 @@
 			if(ft.options.paginate == true) {
 				$(ft.table).bind({
           			'footable_initialized': function(e) {
-          				var $table = $(e.ft.table), $tbody = $table.find('> tbody');
-          				p.input = $table.data('nav') || e.ft.options.navigation;
-						var pageCount = 1;
-						var rowCount = pageCount * ft.options.increment;
-						var page = [];
-						var lastPage = [];
-						$.each(p.rows(ft, $tbody), function(i, row) {
-							page.push(row);
-							if (i === rowCount - 1){
-								p.pages.push(page);
-								pageCount++;
-								rowCount = pageCount * ft.options.increment;
-								page = [];
-							} else if (i >= p.rows(ft, $tbody).length - (p.rows(ft, $tbody).length % ft.options.increment)) {
-								lastPage.push(row);
-							}
+          				var $table = $(e.ft.table);
+          				p.tbody = $table.find('> tbody');
+          				p.navelement = $table.data('nav') || e.ft.options.navigation;
+          				p.rows(ft, true);
+          				p.paginate(ft);
+          				p.clear(ft);
+      					p.fillPage(ft, p.currentPage);
+						$('.footable-sortable').bind('click', function(e){
+							p.fillPage(ft, p.currentPage);
 						});
-						p.pages.push(lastPage);
-						p.navigate(ft, $tbody);
-						p.fillPage(ft, $tbody, 0);
-						$('.footable-sortable').on('click', function(e){
-							p.fillPage(ft, $tbody, p.currentPage);
-						});
+      				},
+      				'footable_filtered': function(e) {
+      					p.paginate(ft);
+      					p.clear(ft);
+      					p.fillPage(ft, p.currentPage);
       				}
   				});
 			}
 		};
 
-		p.rows = function(ft, tbody) {
+		p.paginate = function(ft){
+			p.pages = [];
+			p.currentPage = 0;
+			var pageCount = 1;
+			var rowCount = pageCount * ft.options.increment;
+			var page = [];
+			var lastPage = [];
+			$.each(p.rows(ft), function(i, row) {
+				page.push(row);
+				if (i === rowCount - 1){
+					p.pages.push(page);
+					pageCount++;
+					rowCount = pageCount * ft.options.increment;
+					page = [];
+				} else if (i >= p.rows(ft).length - (p.rows(ft).length % ft.options.increment)) {
+					lastPage.push(row);
+				}
+			});
+			p.pages.push(lastPage);
+			p.navigate(ft);
+		};
+
+		p.rows = function(ft, init) {
 			var rows = [];
 			var i = 1;
-			tbody.find('> tr').each(function() {
-				rows.push(this);
-				$(this).attr('data-order', i);
-				i++;
+			p.tbody.find('> tr').each(function() {
+				if ($(this).is(":visible")) {
+					if(init) $(this).attr('data-order', i);
+					rows.push(this);
+					i++;
+				}
 			});
 			return rows;
 		};
 
-		p.navigate = function(ft, tbody) {
+		p.navigate = function(ft) {
+			$(p.navelement).empty();
 			if (p.pages.length > 0) {
-				var element = $(p.input);
+				var element = $(p.navelement);
 				element.append('<li class="arrow"><a href="#prev">&laquo;</a></li>');
 				$.each(p.pages, function(i, page){
 					if (page.length > 0) {
@@ -67,39 +84,41 @@
 				});
 				element.append('<li class="arrow"><a href="#next">&raquo;</a></li>');
 			}
-			$(p.input + ' a').on('click', function(e) {
+			$(p.navelement + ' a').bind('click', function(e) {
 				e.preventDefault();
 				if ($(this).attr('href') == '#prev') {
 					if (p.currentPage > 0){
-						p.fillPage(ft, tbody, p.currentPage - 1);
+						p.clear(ft);
+						p.fillPage(ft, p.currentPage - 1);
 					}
 				} else if ($(this).attr('href') == '#next') {
-					if (p.currentPage < p.pages.length - 2){
-						p.fillPage(ft, tbody, p.currentPage + 1);
+					if (p.currentPage < p.pages.length - 1){
+						p.clear(ft);
+						p.fillPage(ft, p.currentPage + 1);
 
 					}
 				} else {
 					if (p.currentPage != ($(this).html() - 1)) {
-						p.fillPage(ft, tbody, $(this).html() - 1);
+						p.clear(ft);
+						p.fillPage(ft, $(this).html() - 1);
 					}
 				}
-				$(p.input + ' li').removeClass('current');
-				$(p.input + ' li.page:eq(' + p.currentPage + ')').addClass('current');
+				$(p.navelement + ' li').removeClass('current');
+				$(p.navelement + ' li.page:eq(' + p.currentPage + ')').addClass('current');
 			});
-			$(p.input + ' li.page:eq(' + p.currentPage + ')').addClass('current');
+			$(p.navelement + ' li.page:eq(' + p.currentPage + ')').addClass('current');
 		};
 
-		p.clear = function(ft, tbody) {
-			tbody.find('> tr').each(function() {
+		p.clear = function(ft) {
+			p.tbody.find('> tr').each(function() {
 				$(this).hide();
 			});
 		};
 
-		p.fillPage = function(ft, tbody, pageNumber) {
-			p.clear(ft, tbody);
+		p.fillPage = function(ft, pageNumber) {
 			p.currentPage = pageNumber;
 			$.each(p.pages[pageNumber], function(i, row) {
-				tbody.find('> tr:nth-child(' + ( i + (ft.options.increment * pageNumber + 1) ) + ')').show();
+				p.tbody.find('> tr[data-order="' + $(row).data('order') + '"]').show();
 			});
 		};
 	};
